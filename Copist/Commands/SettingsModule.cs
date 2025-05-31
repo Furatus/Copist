@@ -1,3 +1,4 @@
+using Copist.Models;
 using Copist.Services;
 using Discord;
 using Discord.Interactions;
@@ -28,11 +29,11 @@ public class SettingsModule : InteractionModuleBase<SocketInteractionContext>
             switch (type)
             {
                 case SettingsType.Guild:
-                    var guildSettings = _sqliteService.GetGuildSettings(Context.Guild.Id.ToString()).ToString();
+                    var guildSettings = _sqliteService.GetGuildSettings(Context.Guild.Id.ToString());
                     settings = guildSettings?.ToString() ?? null;
                     if (settings == null)
                     {
-                        await RespondAsync("No settings found is database for this guild.");
+                        await RespondAsync("No settings found in database for this guild.");
                         return;
                     }
                     break; 
@@ -42,7 +43,7 @@ public class SettingsModule : InteractionModuleBase<SocketInteractionContext>
                     settings = userSettings?.ToString() ?? null;
                     if (settings == null)
                     {
-                        await RespondAsync("No settings found is database for this user.");
+                        await RespondAsync("No settings found in database for this user.");
                         return;
                     }
                     
@@ -72,6 +73,37 @@ public class SettingsModule : InteractionModuleBase<SocketInteractionContext>
         {
             Console.WriteLine(e);
             throw;
+        }
+    }
+    
+    [SlashCommand("setuseroption", "Set a new value to a single user setting option.")]
+    public async Task SetUserOptionAsync(
+        [Summary("option", "Option to set")] UserSettings.SettingsType property, 
+        [Summary("valeur", "Value to attribute")] string value)
+    {
+        try
+        {
+            // Vérifie si l'utilisateur existe déjà dans la base de données
+            var userSettings = _sqliteService.GetUserSettings(Context.User.Id.ToString());
+            if (userSettings == null)
+            {
+                // Crée un nouvel utilisateur avec les paramètres par défaut
+                userSettings = new UserSettings { userId = Context.User.Id.ToString() };
+                _sqliteService.SaveUserSettings(userSettings);
+            }
+
+            _sqliteService.SaveSingleUserSetting(Context.User.Id.ToString(), property, value);
+        
+            await RespondAsync($"Updated {property} with success !", ephemeral: true);
+        }
+        catch (ArgumentException ex)
+        {
+            await RespondAsync($"Error: {ex.Message}", ephemeral: true);
+        }
+        catch (Exception e)
+        {
+            Console.Write(e);
+            await RespondAsync("We ran into an issue when updating your settings.", ephemeral: true);
         }
     }
 }

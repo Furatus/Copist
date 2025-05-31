@@ -10,7 +10,7 @@ public class GuildSettings
     public string DefaultTranscriptionChannelId { get; set; } = string.Empty;
     public bool IsTextTranscribedInThread { get; set; } = true;
     
-    public override string ToString()
+    public override string? ToString()
     {
         var properties = GetType().GetProperties();
         var result = new List<string>();
@@ -18,9 +18,9 @@ public class GuildSettings
         foreach (var prop in properties)
         {
             var value = prop.GetValue(this);
-            result.Add($"{prop.Name}: {value}");
+            result.Add($"{prop.Name}: {value}\n");
         }
     
-        return string.Join(", ", result);
+        return string.Join("", result);
     }
 }

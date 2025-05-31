@@ -92,15 +92,31 @@ public class SqliteService
         return userSettings;
     }
 
-    public GuildSettings GetGuildSettings(string guildId)
+    public GuildSettings? GetGuildSettings(string guildId)
     {
         using var connection = getConnection();
         connection.Open();
 
-        var sql = "SELECT * FROM GuildSettings WHERE guildId = @guildId";
+        var getSettingsSql = "SELECT * FROM GuildSettings WHERE guildId = @guildId";
+        
+        var row = connection.QueryFirstOrDefault(getSettingsSql, new { guildId });
+        if (row == null)
+        {
+            connection.Close();
+            return null;
+        }
+        
+        var guildSettings = new GuildSettings
+        {
+            GuildId = row.guildId,
+            DefaultServerLanguage = row.defaultServerLanguage,
+            IsLeavingWhenLeaderLeaves = row.isLeavingWhenLeaderLeaves,
+            DefaultTranscriptionChannelId = row.defaultTranscriptionChannelId,
+            IsTextTranscribedInThread = row.isTextTranscribedInThread
+        };
         
         connection.Close();
-        return connection.QueryFirstOrDefault<GuildSettings>(sql, new { guildId });
+        return guildSettings;
     }
     
     public void SaveUserSettings(UserSettings userSettings)
@@ -113,6 +129,33 @@ public class SqliteService
             VALUES (@userId, @defaultLanguage, @isAllowingRecording, @isCopistFollowingWhenLeading)";
         
         connection.Execute(sql, userSettings);
+        connection.Close();
+    }
+    
+    public void SaveSingleUserSetting(string userId, UserSettings.SettingsType settingType, string value)
+    {
+        using var connection = getConnection();
+        connection.Open();
+        
+        var updateSettingSql = $"UPDATE UserSettings SET {settingType} = @value WHERE userId = @userId";
+        
+        var expectedType = UserSettings.GetExpectedTypeForProperty(settingType);
+        object convertedValue;
+
+        switch (expectedType)
+        {
+            case "bool":
+                convertedValue = bool.TryParse(value, out bool b) ? b : false;
+                break;
+            case "int":
+                convertedValue = int.TryParse(value, out int i) ? i : 0;
+                break;
+            default:
+                convertedValue = value;
+                break;
+        }
+        
+        connection.Execute(updateSettingSql, new { userId, value = convertedValue });
         connection.Close();
     }
     
